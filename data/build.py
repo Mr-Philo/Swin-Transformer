@@ -41,6 +41,24 @@ except:
     from timm.data.transforms import _pil_interp
 
 
+import torch
+import PIL
+from PIL import Image, ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+def my_collate(batch):
+    valid_batch = []
+
+    for img, target in batch:
+        try:
+            img = Image.open(img).convert('RGB')
+            valid_batch.append((img, target))
+        except PIL.UnidentifiedImageError:
+            print(f"<Func my_collate Warning>: cannot identify image file {img}, skipping")
+
+    return torch.utils.data.dataloader.default_collate(valid_batch)
+
+
 def build_loader(config):
     config.defrost()
     dataset_train, config.MODEL.NUM_CLASSES = build_dataset(is_train=True, config=config)
@@ -72,6 +90,7 @@ def build_loader(config):
         num_workers=config.DATA.NUM_WORKERS,
         pin_memory=config.DATA.PIN_MEMORY,
         drop_last=True,
+        collate_fn=my_collate
     )
 
     data_loader_val = torch.utils.data.DataLoader(
@@ -80,7 +99,8 @@ def build_loader(config):
         shuffle=False,
         num_workers=config.DATA.NUM_WORKERS,
         pin_memory=config.DATA.PIN_MEMORY,
-        drop_last=False
+        drop_last=False,
+        collate_fn=my_collate
     )
 
     # setup mixup / cutmix
